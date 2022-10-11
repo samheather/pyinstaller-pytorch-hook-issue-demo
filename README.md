@@ -13,36 +13,101 @@ cd pyinstaller-pytorch-hook-issue-demo
 python3 -m venv venv
 source venv/bin/activate
 pip install -r req.txt
-
-#Finally, try running pyinstaller:
-pyinstaller demo.py --noconfirm --clean --target-arch arm64 --hidden-import=pytorch --copy-metadata torch
 ```
 
-At the final step, the following will be output and the binary produced will fail to execute:
+Initially, I would run pyinstaller using the following:
+
 ```
-38678 DEBUG: Signing file '/Users/samuel/Library/Application Support/pyinstaller/bincache00_py310_64bit/arm64/adhoc/no-entitlements/torch/_C.cpython-310-darwin.so'
+pyinstaller hi.py --noconfirm --clean --target-arch arm64 --hidden-import=pytorch --copy-metadata torch
+```
+
+Then I'd add the following after line 22 in the generated `.spec` to give the `hi.spec` included in this repo:
+```
+tmp_ret = collect_all('torch', include_py_files=True)
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('pytorch', include_py_files=True)
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('torchvision', include_py_files=True)
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('timm', include_py_files=True)
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+# To handle: https://giters.com/pyinstaller/pyinstaller/issues/6281
+tmp_ret = collect_all('basicsr', include_py_files=True)
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+```
+
+This generated the required binary. To setup the run-time environment, run the following once, to deal with issues where disttools is imported before setuptools:
+```
+export SETUPTOOLS_USE_DISTUTILS=stdlib
+```
+
+To run the binary, it's required to remove the duplicated dynlibs included at the root of the `dist` folder. Best do this in a separate shell _outside_ the venv.
+
+```
+cd ./dist/hi
+rm libtorch_python.dylib
+rm libtorch.dylib
+rm libc10.dylib
+rm libtorch_cpu.dylib
+ln -s ./torch/lib/libtorch_python.dylib libtorch_python.dylib
+ln -s ./torch/lib/libtorch.dylib libtorch.dylib
+ln -s ./torch/lib/libc10.dylib libc10.dylib
+ln -s ./torch/lib/libtorch_cpu.dylib libtorch_cpu.dylib
+./hi
+cd ../../
+```
+
+The current error I see is:
+```
+torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: Failed to load dynlib/dll '/Users/samuel/git/imaginAIry/dist/hi/torchvision/image.so'. Most likely this dynlib/dll was not found when the application was frozen.
+  warn(f"Failed to load image Python extension: {e}")
+torchvision/__init__.py:23: UserWarning: You are importing torchvision within its own root folder (/Users/samuel/git/imaginAIry/dist/hi). This is not expected to work and may give errors. Please exit the torchvision project source and relaunch your python interpreter.
+  warnings.warn(message.format(os.getcwd()))
 Traceback (most recent call last):
-  File "/Users/samuel/git/imaginAIry/venv/bin/pyinstaller", line 8, in <module>
-    sys.exit(run())
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/__main__.py", line 179, in run
-    run_build(pyi_config, spec_file, **vars(args))
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/__main__.py", line 60, in run_build
-    PyInstaller.building.build_main.main(pyi_config, spec_file, **kwargs)
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/building/build_main.py", line 962, in main
-    build(specfile, distpath, workpath, clean_build)
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/building/build_main.py", line 884, in build
-    exec(code, spec_namespace)
-  File "/Users/samuel/git/imaginAIry/demo.spec", line 53, in <module>
-    coll = COLLECT(
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/building/api.py", line 876, in __init__
-    self.__postinit__()
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/building/datastruct.py", line 173, in __postinit__
-    self.assemble()
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/building/api.py", line 908, in assemble
-    fnm = checkCache(
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/building/utils.py", line 381, in checkCache
-    osxutils.binary_to_target_arch(cachedfile, target_arch, display_name=fnm)
-  File "/Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/PyInstaller/utils/osx.py", line 323, in binary_to_target_arch
-    raise IncompatibleBinaryArchError(
-PyInstaller.utils.osx.IncompatibleBinaryArchError: /Users/samuel/git/imaginAIry/venv/lib/python3.10/site-packages/torch/_dl.cpython-310-darwin.so is incompatible with target arch arm64 (has arch: x86_64)!
+  File "torch/_sources.py", line 23, in get_source_lines_and_file
+    sourcelines, file_lineno = inspect.getsourcelines(obj)
+  File "inspect.py", line 1129, in getsourcelines
+  File "inspect.py", line 958, in findsource
+OSError: could not get source code
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "hi.py", line 2, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "PyInstaller/loader/pyimod02_importers.py", line 499, in exec_module
+  File "imaginairy/__init__.py", line 7, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "PyInstaller/loader/pyimod02_importers.py", line 499, in exec_module
+  File "imaginairy/api.py", line 18, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "PyInstaller/loader/pyimod02_importers.py", line 499, in exec_module
+  File "imaginairy/enhancers/face_restoration_codeformer.py", line 12, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "PyInstaller/loader/pyimod02_importers.py", line 499, in exec_module
+  File "imaginairy/vendored/codeformer/codeformer_arch.py", line 11, in <module>
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "PyInstaller/loader/pyimod02_importers.py", line 499, in exec_module
+  File "imaginairy/vendored/codeformer/vqgan_arch.py", line 21, in <module>
+  File "torch/jit/_script.py", line 1340, in script
+    ast = get_jit_def(obj, obj.__name__)
+  File "torch/jit/frontend.py", line 262, in get_jit_def
+    parsed_def = parse_def(fn) if not isinstance(fn, _ParsedDef) else fn
+  File "torch/_sources.py", line 122, in parse_def
+    sourcelines, file_lineno, filename = get_source_lines_and_file(
+  File "torch/_sources.py", line 32, in get_source_lines_and_file
+    raise OSError(msg) from e
+OSError: Can't get source for <function swish at 0x285eb6950>. TorchScript requires source access in order to carry out compilation, make sure original .py files are available.
+[738] Failed to execute script 'hi' due to unhandled exception!
 ```
