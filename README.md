@@ -13,6 +13,8 @@ cd pyinstaller-pytorch-hook-issue-demo
 python3 -m venv venv
 source venv/bin/activate
 pip install -r req.txt
+pip uninstall torch torchvision
+pip install -U --pre torch torchvision --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 ```
 
 Initially, I would run pyinstaller using the following:
