@@ -13,17 +13,19 @@ cd pyinstaller-pytorch-hook-issue-demo
 python3 -m venv venv
 source venv/bin/activate
 pip install -r req.txt
-pip uninstall torch torchvision
+pip uninstall --yes torch torchvision
 pip install -U --pre torch torchvision --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 ```
 
-Initially, I would run pyinstaller using the following:
+You can generate your own pyinstaller.spec using the below command and modification steps, or use the one included in the repo:
+
+To generate your own, run pyinstaller using the following:
 
 ```
-pyinstaller hi.py --noconfirm --clean --target-arch arm64 --hidden-import=pytorch --copy-metadata torch
+pyinstaller hi.py --noconfirm --clean --target-arch arm64 --hidden-import=pytorch --hidden-import=torch --hidden-import=transformers --collect-all transformers --collect-all tqdm --collect-all regex --collect-all requests --collect-all packaging --collect-all filelock --collect-all numpy --collect-all tokenizers
 ```
 
-Then I'd add the following after line 22 in the generated `.spec` to give the `hi.spec` included in this repo:
+Then add the following after line 22 in the generated `.spec` to give the `hi.spec` included in this repo:
 ```
 tmp_ret = collect_all('torch', include_py_files=True)
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
@@ -39,9 +41,9 @@ tmp_ret = collect_all('basicsr', include_py_files=True)
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 ```
 
-I then switch to running pyinstaller using the spec file:
+I then switch to running pyinstaller using the spec file (or you can just skip to here if you don't want to generate your own):
 
-```pyinstaller hi.spec```
+```pyinstaller hi.spec --noconfirm --clean```
 
 ## Running the binary you just generated
 
