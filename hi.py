@@ -1,3 +1,4 @@
+import setuptools
 from imaginairy import imagine, imagine_image_files, ImaginePrompt, WeightedPrompt, LazyLoadingImage
 
 prompts = [
