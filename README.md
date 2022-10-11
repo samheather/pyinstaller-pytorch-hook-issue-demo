@@ -19,13 +19,13 @@ pip install -U --pre torch torchvision --extra-index-url https://download.pytorc
 
 You can generate your own pyinstaller.spec using the below command and modification steps, or use the one included in the repo:
 
-To generate your own, run pyinstaller using the following:
+To generate your own, run pyinstaller using the following - we're only doing this to get a spec file, don't bother trying to run the generated binary, it won't work:
 
 ```
 pyinstaller hi.py --noconfirm --clean --target-arch arm64 --hidden-import=pytorch --hidden-import=torch --hidden-import=transformers --collect-all transformers --collect-all tqdm --collect-all regex --collect-all requests --collect-all packaging --collect-all filelock --collect-all numpy --collect-all tokenizers
 ```
 
-Then add the following after line 22 in the generated `.spec` to give the `hi.spec` included in this repo:
+Then add the following after line 22 in the generated `.spec` to give the `hi.spec` included in this repo (remember, you can also just use the included default `hi.spec` if you wish!):
 ```
 tmp_ret = collect_all('torch', include_py_files=True)
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
