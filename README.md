@@ -39,12 +39,20 @@ tmp_ret = collect_all('basicsr', include_py_files=True)
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 ```
 
-This generated the required binary. To setup the run-time environment, run the following once, to deal with issues where disttools is imported before setuptools:
+I then switch to running pyinstaller using the spec file:
+
+```pyinstaller hi.spec```
+
+## Running the binary you just generated
+
+First, open a new shell window _outside of your venv_
+
+Next, to setup the run-time environment, run the following once, to deal with issues where disttools is imported before setuptools:
 ```
 export SETUPTOOLS_USE_DISTUTILS=stdlib
 ```
 
-To run the binary, it's required to remove the duplicated dynlibs included at the root of the `dist` folder. Best do this in a separate shell _outside_ the venv.
+To run the binary, it's required to remove the duplicated dynlibs included at the root of the `dist` folder and link them to those included by pyinstaller. Best do this in a separate shell _outside_ the venv.
 
 ```
 cd ./dist/hi
@@ -59,6 +67,8 @@ ln -s ./torch/lib/libtorch_cpu.dylib libtorch_cpu.dylib
 ./hi
 cd ../../
 ```
+
+## This is where the problems start
 
 The current error I see is:
 ```
